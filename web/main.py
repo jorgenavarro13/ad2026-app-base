@@ -45,7 +45,7 @@ def update_contact(contact_id: int, contact:Contact):
 @app.delete("/contacts/{contact_id}")
 def delete_contact(contact_id: int):
     if contact_id not in agenda:
-        rase HTTPException(status_code=404, detail="Contact not found")
+        raise HTTPException(status_code=404, detail="Contact not found")
     del agenda[contact_id]
     return {"status": "deleted", "id": contact_id}
 
