@@ -1,17 +1,52 @@
 import os
 from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
+from prometheus_fastapi_instrumentator import Instrumentator
 from sqlalchemy import create_engine, text
 
 app = FastAPI()
+Instrumentator().instrument(app).expose(app)
+
+agenda = {}
+current_id = 1
+
+class Contact(BaseModel):
+	name: str
+	phone: str
 
 @app.get("/")
 def root():
-    return {"message": f"Hello World!"}
+    return {"message": f"Welcome to the Agenda API"}
 
 @app.get("/name")
 def name():
     user_name = os.getenv("USER_NAME", "World")
     return {"message": f"Hello {user_name}"}
+
+@app.post("/contacts")
+def create_contact(contact: Contact):
+    global current_id
+    agenda[current_id] = contact.dict()
+    current_id += 1
+    return {"id": curent_id -1, **contact.dict()}
+
+@app.get("/contacts")
+def read_contacts():
+    return {"count": len(agenda), "contacts" : agenda}
+
+@app.put("/contacts/{contact_id}")
+def update_contact(contact_id: int, contact:Contact):
+    if contact_id not in agenda:
+        raise HTTPException(status_code=404, detail="Contact not found")
+    agenda[contact_id] = contact.dict()
+    return {"id":contact_id, **contact.dict()}
+
+@app.delete("/contacts/{contact_id}")
+def delete_contact(contact_id: int):
+    if contact_id not in agenda:
+        rase HTTPException(status_code=404, detail="Contact not found")
+    del agenda[contact_id]
+    return {"status": "deleted", "id": contact_id}
 
 @app.get("/test-db")
 def test_db():
@@ -20,7 +55,7 @@ def test_db():
     DB_NAME = os.getenv("DB_NAME", "postgres")
     DB_USER = os.getenv("DB_USER", "postgres")
     DB_PASSWORD = os.getenv("DB_PASSWORD", "postgres")
-    DATABASE_URL = f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+    DATABASE_URL = f"postgresql+psycopg2://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
     engine = create_engine(DATABASE_URL)
     try:
         # Open connection and execute a test query
